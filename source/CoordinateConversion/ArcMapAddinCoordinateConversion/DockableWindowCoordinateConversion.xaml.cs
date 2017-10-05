@@ -20,7 +20,6 @@ using System.Windows.Controls;
 using ESRI.ArcGIS.Carto;
 using ESRI.ArcGIS.Geodatabase;
 using ESRI.ArcGIS.Geometry;
-using ArcMapAddinCoordinateConversion.ViewModels;
 using CoordinateConversionLibrary.Helpers;
 
 namespace ArcMapAddinCoordinateConversion
@@ -39,7 +38,7 @@ namespace ArcMapAddinCoordinateConversion
             ArcMap.Events.OpenDocument += ArcMap_NewOpenDocument;
         }
 
-        IActiveViewEvents_Event avEvents = null;
+        IActiveViewEvents_Event avEvents;
         
         private void ArcMap_NewOpenDocument()
         {
@@ -48,7 +47,7 @@ namespace ArcMapAddinCoordinateConversion
                 avEvents.SelectionChanged -= OnSelectionChanged;
                 avEvents = null;
             }
-            avEvents = ArcMap.Document.ActiveView as IActiveViewEvents_Event;
+            avEvents = (IActiveViewEvents_Event) ArcMap.Document.ActiveView;
             avEvents.SelectionChanged += OnSelectionChanged;
         }
 
@@ -58,9 +57,9 @@ namespace ArcMapAddinCoordinateConversion
             {
                 for (int i = 0; i < ArcMap.Document.FocusMap.LayerCount; i++ )
                 {
-                    if(ArcMap.Document.FocusMap.get_Layer(i) is IFeatureLayer)
+                    if(ArcMap.Document.FocusMap.Layer[i] is IFeatureLayer)
                     {
-                        var fl = ArcMap.Document.FocusMap.get_Layer(i) as IFeatureLayer;
+                        var fl = (IFeatureLayer) ArcMap.Document.FocusMap.Layer[i];
 
                         var fselection = fl as IFeatureSelection;
                         if (fselection == null)
@@ -72,23 +71,13 @@ namespace ArcMapAddinCoordinateConversion
                             fselection.SelectionSet.Search(null, false, out cursor);
 
                             var fc = cursor as IFeatureCursor;
-                            var f = fc.NextFeature();
+                            var f = fc?.NextFeature();
 
-                            if(f != null)
+                            if(f?.Shape is IPoint)
                             {
-                                if(f.Shape is IPoint)
-                                {
-                                    var point = f.Shape as IPoint;
-                                    if(point != null)
-                                    {
-                                        var tempX = point.X;
-                                        var tempY = point.Y;
-
-                                        Mediator.NotifyColleagues(CoordinateConversionLibrary.Constants.NewMapPointSelection, point);
-                                    }
-                                }
+                                var point = (IPoint) f.Shape;
+                                Mediator.NotifyColleagues(CoordinateConversionLibrary.Constants.NewMapPointSelection, point);
                             }
-
                         }
                     }
                 }
@@ -109,15 +98,14 @@ namespace ArcMapAddinCoordinateConversion
 
             protected override IntPtr OnCreateChild()
             {
-                m_windowUI = new System.Windows.Forms.Integration.ElementHost();
-                m_windowUI.Child = new DockableWindowCoordinateConversion();
+                m_windowUI =
+                    new System.Windows.Forms.Integration.ElementHost {Child = new DockableWindowCoordinateConversion()};
                 return m_windowUI.Handle;
             }
 
             protected override void Dispose(bool disposing)
             {
-                if (m_windowUI != null)
-                    m_windowUI.Dispose();
+                m_windowUI?.Dispose();
 
                 base.Dispose(disposing);
             }

@@ -198,15 +198,15 @@ namespace ProAppCoordConversionModule
             if (Point == null)
                 return "NA";
 
-            var result = string.Format("{0:0.0#####} {1:0.0#####}", Point.Y, Point.X);
+            var result = $"{Point.Y:0.0#####} {Point.X:0.0#####}";
 
             if (Point.SpatialReference == null)
                 return result;
 
-            ToGeoCoordinateParameter tgparam = null;
-
             try
             {
+                ToGeoCoordinateParameter tgparam = null;
+
                 switch (CoordinateConversionLibraryConfig.AddInConfig.DisplayCoordinateType)
                 {
                     case CoordinateTypes.DD:

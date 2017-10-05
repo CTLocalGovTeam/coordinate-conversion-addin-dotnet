@@ -14,11 +14,13 @@
   *   limitations under the License. 
   ******************************************************************************/
 
+using System;
 using System.Collections.Generic;
 using System.Xml.Serialization;
 
 namespace CoordinateConversionLibrary.Helpers
 {
+    [Serializable]
     [XmlRoot("dictionary")]
     public class SerializableDictionary<TKey, TValue>
         : Dictionary<TKey, TValue>, IXmlSerializable
@@ -52,7 +54,7 @@ namespace CoordinateConversionLibrary.Helpers
                 TValue value = (TValue)valueSerializer.Deserialize(reader);
                 reader.ReadEndElement();
 
-                this.Add(key, value);
+                Add(key, value);
 
                 reader.ReadEndElement();
                 reader.MoveToContent();
@@ -65,7 +67,7 @@ namespace CoordinateConversionLibrary.Helpers
             XmlSerializer keySerializer = new XmlSerializer(typeof(TKey));
             XmlSerializer valueSerializer = new XmlSerializer(typeof(TValue));
 
-            foreach (TKey key in this.Keys)
+            foreach (TKey key in Keys)
             {
                 writer.WriteStartElement("item");
 

@@ -432,7 +432,10 @@ namespace ArcMapAddinCoordinateConversion.ViewModels
                     return CoordinateType.DDM;
                 }
             }
-            catch { }
+            catch
+            {
+                // ignored
+            }
 
             try
             {

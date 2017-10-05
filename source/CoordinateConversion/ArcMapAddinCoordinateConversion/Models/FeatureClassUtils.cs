@@ -29,12 +29,13 @@ using ESRI.ArcGIS.DataSourcesFile;
 using ESRI.ArcGIS.Carto;
 using ESRI.ArcGIS.ADF;
 using CoordinateConversionLibrary;
+using Path = System.IO.Path;
 
 namespace ArcMapAddinCoordinateConversion.Models
 {
     class FeatureClassUtils
     {
-        private IGxDialog m_ipSaveAsGxDialog = null; 
+        private IGxDialog m_ipSaveAsGxDialog; 
 
         /// <summary>
         /// Prompts the user to save features
@@ -43,7 +44,7 @@ namespace ArcMapAddinCoordinateConversion.Models
         /// </summary>
         /// <param name="iParentWindow">The window handle of the parent window</param>
         /// <returns>The path to selected output (fgdb/shapefile)</returns>
-        public string PromptUserWithGxDialog(int iParentWindow)
+        public string PromptUserWithGxDialog(int iParentWindow) //TODO check this method, some strange coding logic here
         {
             //Prep the dialog
             if (m_ipSaveAsGxDialog == null)
@@ -72,16 +73,16 @@ namespace ArcMapAddinCoordinateConversion.Models
                 return null;
             else
             {
-                IGxObject ipGxObject = m_ipSaveAsGxDialog.FinalLocation;
-                string nameString = m_ipSaveAsGxDialog.Name;
-                bool replacingObject = m_ipSaveAsGxDialog.ReplacingObject;
-                string path = m_ipSaveAsGxDialog.FinalLocation.FullName + "\\" + m_ipSaveAsGxDialog.Name;
+                //IGxObject ipGxObject = m_ipSaveAsGxDialog.FinalLocation;
+                //string nameString = m_ipSaveAsGxDialog.Name;
+                //bool replacingObject = m_ipSaveAsGxDialog.ReplacingObject;
+                string path = $"{m_ipSaveAsGxDialog.FinalLocation.FullName}{Path.DirectorySeparatorChar}{m_ipSaveAsGxDialog.Name}";
                 IGxObject ipSelectedObject = m_ipSaveAsGxDialog.InternalCatalog.SelectedObject;
 
                 // user selected an existing featureclass
-                if (ipSelectedObject != null && ipSelectedObject is IGxDataset)
+                var ipGxDataset = ipSelectedObject as IGxDataset;
+                if (ipGxDataset != null)
                 {
-                    IGxDataset ipGxDataset = (IGxDataset)ipSelectedObject;
                     IDataset ipDataset = ipGxDataset.Dataset;
 
                     // User will be prompted if they select an existing shapefile
@@ -96,7 +97,7 @@ namespace ArcMapAddinCoordinateConversion.Models
                                                                  CoordinateConversionLibrary.Properties.Resources.CaptionOverwrite, 
                                                                  System.Windows.Forms.MessageBoxButtons.OKCancel) == System.Windows.Forms.DialogResult.OK)
                         {
-                            return m_ipSaveAsGxDialog.FinalLocation.FullName + "\\" + m_ipSaveAsGxDialog.Name;
+                            return $"{m_ipSaveAsGxDialog.FinalLocation.FullName}{Path.DirectorySeparatorChar}{m_ipSaveAsGxDialog.Name}";
                         }
 
                         if (m_ipSaveAsGxDialog.DoModalSave(iParentWindow) == false)
@@ -104,14 +105,10 @@ namespace ArcMapAddinCoordinateConversion.Models
                             return null;
                         }
 
-                        if (ipSelectedObject != null && ipSelectedObject is IGxDataset)
-                        {
-                            ipGxDataset = (IGxDataset)ipSelectedObject;
-                            ipDataset = ipGxDataset.Dataset;
-                        }
+                        ipDataset = ipGxDataset.Dataset;
                     }
 
-                    return m_ipSaveAsGxDialog.FinalLocation.FullName + "\\" + m_ipSaveAsGxDialog.Name;
+                    return $"{m_ipSaveAsGxDialog.FinalLocation.FullName}{Path.DirectorySeparatorChar}{m_ipSaveAsGxDialog.Name}";
                 }
                 else
                     return path;
@@ -128,8 +125,8 @@ namespace ArcMapAddinCoordinateConversion.Models
         /// <returns>Output featureclass</returns>
         public IFeatureClass CreateFCOutput(string outputPath, SaveAsType saveAsType, List<AMGraphic> graphicsList, ISpatialReference ipSpatialRef)
         {
-            string fcName = System.IO.Path.GetFileName(outputPath);
-            string folderName = System.IO.Path.GetDirectoryName(outputPath);
+            string fcName = Path.GetFileName(outputPath);
+            string folderName = Path.GetDirectoryName(outputPath);
             IFeatureClass fc = null;
 
             try
@@ -169,26 +166,24 @@ namespace ArcMapAddinCoordinateConversion.Models
                 }
                 return fc;
             }
-            catch (Exception ex)
+            catch
             {
                 return fc;
             }
-
-            return fc;
         }
 
         public void DeleteShapeFile(string shapeFilePath)
         {
-            string fcName = System.IO.Path.GetFileName(shapeFilePath);
-            string folderName = System.IO.Path.GetDirectoryName(shapeFilePath);
+            string fcName = Path.GetFileName(shapeFilePath);
+            string folderName = Path.GetDirectoryName(shapeFilePath);
 
-            using (ComReleaser oComReleaser = new ComReleaser())
+            using (new ComReleaser())
             {
                 IWorkspaceFactory workspaceFactory = new ShapefileWorkspaceFactory();
                 IWorkspace workspace = workspaceFactory.OpenFromFile(folderName, 0);
                 IFeatureWorkspace fWorkspace = (IFeatureWorkspace)workspace;
                 IDataset ipDs = fWorkspace.OpenFeatureClass(fcName) as IDataset;
-                ipDs.Delete();
+                ipDs?.Delete();
 
                 File.Delete(shapeFilePath);
 
@@ -211,33 +206,32 @@ namespace ArcMapAddinCoordinateConversion.Models
         /// <returns>Created featureclass</returns>
         private IFeatureClass ExportToShapefile(string fileNamePath, List<AMGraphic> graphicsList, ISpatialReference ipSpatialRef)
         {
-            int index = fileNamePath.LastIndexOf('\\');
+            int index = fileNamePath.LastIndexOf(Path.DirectorySeparatorChar);
             string folder = fileNamePath.Substring(0, index);
             string nameOfShapeFile = fileNamePath.Substring(index + 1);
             string shapeFieldName = "Shape";
             IFeatureClass featClass = null;
 
-            using (ComReleaser oComReleaser = new ComReleaser())
+            using (new ComReleaser())
             {
                 try
                 {
                     IWorkspaceFactory workspaceFactory = null;
                     workspaceFactory = new ShapefileWorkspaceFactoryClass();
                     IWorkspace workspace = workspaceFactory.OpenFromFile(folder, 0);
-                    IFeatureWorkspace featureWorkspace = workspace as IFeatureWorkspace;
-                    IFields fields = null;
-                    IFieldsEdit fieldsEdit = null;
-                    fields = new Fields();
-                    fieldsEdit = (IFieldsEdit)fields;
+                    IFeatureWorkspace featureWorkspace = (IFeatureWorkspace) workspace;
+                    IFields fields = new Fields();
+                    IFieldsEdit fieldsEdit = (IFieldsEdit)fields;
+                    //fieldsEdit = (IFieldsEdit)fields;
                     IField field = null;
                     IFieldEdit fieldEdit = null;
-                    field = new FieldClass();///###########
+                    field = new FieldClass();
                     fieldEdit = (IFieldEdit)field;
                     fieldEdit.Name_2 = "Shape";
                     fieldEdit.Type_2 = (esriFieldType.esriFieldTypeGeometry);
                     IGeometryDef geomDef = null;
                     IGeometryDefEdit geomDefEdit = null;
-                    geomDef = new GeometryDefClass();///#########
+                    geomDef = new GeometryDefClass();
                     geomDefEdit = (IGeometryDefEdit)geomDef;
 
                     geomDefEdit.GeometryType_2 = esriGeometryType.esriGeometryPoint;
@@ -259,9 +253,11 @@ namespace ArcMapAddinCoordinateConversion.Models
                     }
 
                     IFeatureLayer featurelayer = null;
-                    featurelayer = new FeatureLayerClass();
-                    featurelayer.FeatureClass = featClass;
-                    featurelayer.Name = featClass.AliasName;
+                    featurelayer = new FeatureLayerClass
+                    {
+                        FeatureClass = featClass,
+                        Name = featClass.AliasName
+                    };
 
                     System.Runtime.InteropServices.Marshal.FinalReleaseComObject(workspace);
                     workspace = null;
@@ -269,7 +265,7 @@ namespace ArcMapAddinCoordinateConversion.Models
 
                     return featClass;
                 }
-                catch (Exception ex)
+                catch
                 {
                     return featClass;
                 }
@@ -301,7 +297,7 @@ namespace ArcMapAddinCoordinateConversion.Models
         {
             IWorkspaceFactory workspaceFactory = new FileGDBWorkspaceFactory();
             IWorkspace workspace = workspaceFactory.OpenFromFile (gdbFilePath, 0);
-            IEnumDataset enumDataset = workspace.get_Datasets(esriDatasetType.esriDTAny);
+            IEnumDataset enumDataset = workspace.Datasets[esriDatasetType.esriDTAny];
             List<string> names = new List<string>();
             IDataset dataset = null;
             while((dataset = enumDataset.Next())!= null)
@@ -319,7 +315,7 @@ namespace ArcMapAddinCoordinateConversion.Models
         private void DeleteFeatureClass(IFeatureWorkspace fWorkspace, string fcName)
         {
             IDataset ipDs = fWorkspace.OpenFeatureClass(fcName) as IDataset;
-            ipDs.Delete();
+            ipDs?.Delete();
         }
 
         /// <summary> 
@@ -339,8 +335,7 @@ namespace ArcMapAddinCoordinateConversion.Models
             pFldEdt.AliasName_2 = "OBJECTID";
             pFldsEdt.AddField(pFldEdt);
 
-            IGeometryDefEdit pGeoDef;
-            pGeoDef = new GeometryDefClass();
+            IGeometryDefEdit pGeoDef = new GeometryDefClass();
             pGeoDef.GeometryType_2 = esriGeometryType.esriGeometryPoint;
 
             pGeoDef.SpatialReference_2 = ArcMap.Document.FocusMap.SpatialReference;
@@ -368,19 +363,23 @@ namespace ArcMapAddinCoordinateConversion.Models
             IPolygon polygon = new PolygonClass();
             Polyline polyLine = geom as Polyline;
 
-            ISegmentCollection polygonSegs = polygon as ISegmentCollection;
-            ISegmentCollection polylineSegs = polyLine as ISegmentCollection;
-
-            for (int i = 0; i < polylineSegs.SegmentCount; i++)
+            if (geom != null)
             {
-                ISegment seg = polylineSegs.Segment[i];
-                polygonSegs.AddSegment(seg);
+                var polygonSegs = (ISegmentCollection) polygon;
+                var polylineSegs = (ISegmentCollection) polyLine;
+
+                if (polylineSegs != null)
+                {
+                    for (var i = 0; i < polylineSegs.SegmentCount; i++)
+                    {
+                        var seg = polylineSegs.Segment[i];
+                        polygonSegs.AddSegment(seg);
+                    }
+                }
+                polygon.SimplifyPreserveFromTo();
             }
 
-            polygon.SimplifyPreserveFromTo();
-
             return polygon;
-
         }
     } 
 }

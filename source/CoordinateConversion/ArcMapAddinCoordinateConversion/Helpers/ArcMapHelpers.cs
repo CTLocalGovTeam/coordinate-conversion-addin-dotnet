@@ -13,6 +13,8 @@
 // limitations under the License.
 
 using System;
+using System.Threading;
+using System.Windows.Forms;
 using ESRI.ArcGIS.ArcMapUI;
 using ESRI.ArcGIS.Carto;
 using ESRI.ArcGIS.Display;
@@ -25,8 +27,8 @@ namespace ArcMapAddinCoordinateConversion.Helpers
         public static ISpatialReference GetGCS_WGS_1984_SR()
         {
             Type t = Type.GetTypeFromProgID("esriGeometry.SpatialReferenceEnvironment");
-            System.Object obj = Activator.CreateInstance(t);
-            ISpatialReferenceFactory srFact = obj as ISpatialReferenceFactory;
+            Object obj = Activator.CreateInstance(t);
+            ISpatialReferenceFactory srFact = (ISpatialReferenceFactory) obj;
 
             // Use the enumeration to create an instance of the predefined object.
 
@@ -34,22 +36,22 @@ namespace ArcMapAddinCoordinateConversion.Helpers
                 srFact.CreateGeographicCoordinateSystem((int)
                 esriSRGeoCSType.esriSRGeoCS_WGS1984);
 
-            return geographicCS as ISpatialReference;
+            return geographicCS;
         }
         public static ISpatialReference GetSR(int type)
         {
             Type t = Type.GetTypeFromProgID("esriGeometry.SpatialReferenceEnvironment");
-            System.Object obj = Activator.CreateInstance(t);
-            ISpatialReferenceFactory srFact = obj as ISpatialReferenceFactory;
+            Object obj = Activator.CreateInstance(t);
+            ISpatialReferenceFactory srFact = (ISpatialReferenceFactory) obj;
 
             // Use the enumeration to create an instance of the predefined object.
             try
             {
                 IGeographicCoordinateSystem geographicCS = srFact.CreateGeographicCoordinateSystem(type);
 
-                return geographicCS as ISpatialReference;
+                return geographicCS;
             }
-            catch (Exception ex)
+            catch
             {
                 // do nothing
             }
@@ -59,9 +61,9 @@ namespace ArcMapAddinCoordinateConversion.Helpers
             {
                 IProjectedCoordinateSystem projectCS = srFact.CreateProjectedCoordinateSystem(type);
 
-                return projectCS as ISpatialReference;
+                return projectCS;
             }
-            catch (Exception ex)
+            catch
             {
                 // do nothing
             }
@@ -72,7 +74,12 @@ namespace ArcMapAddinCoordinateConversion.Helpers
         /// Adds a graphic element to the map graphics container
         /// Returns GUID
         /// </summary>
-        /// <param name="geom">IGeometry</param>
+        /// <param name="geom"></param>
+        /// <param name="color"></param>
+        /// <param name="IsTempGraphic"></param>
+        /// <param name="markerStyle"></param>
+        /// <param name="size"></param>
+        /// <returns></returns>
         public static string AddGraphicToMap(IGeometry geom, IColor color, bool IsTempGraphic = false, esriSimpleMarkerStyle markerStyle = esriSimpleMarkerStyle.esriSMSCircle, int size = 5)
         {
             if (geom == null || ArcMap.Document == null || ArcMap.Document.FocusMap == null)
@@ -86,14 +93,14 @@ namespace ArcMapAddinCoordinateConversion.Helpers
             if (geom.GeometryType == esriGeometryType.esriGeometryPoint)
             {
                 // Marker symbols
-                var simpleMarkerSymbol = new SimpleMarkerSymbol() as ISimpleMarkerSymbol;
+                var simpleMarkerSymbol = (ISimpleMarkerSymbol) new SimpleMarkerSymbol();
                 simpleMarkerSymbol.Color = color;
                 simpleMarkerSymbol.Outline = false;
                 simpleMarkerSymbol.OutlineColor = color;
                 simpleMarkerSymbol.Size = size;
                 simpleMarkerSymbol.Style = markerStyle;
 
-                var markerElement = new MarkerElement() as IMarkerElement;
+                var markerElement = (IMarkerElement) new MarkerElement();
                 markerElement.Symbol = simpleMarkerSymbol;
                 element = markerElement as IElement;
             }
@@ -101,19 +108,21 @@ namespace ArcMapAddinCoordinateConversion.Helpers
             {
                 // create graphic then add to map
                 var le = new LineElementClass() as ILineElement;
-                element = le as IElement;
+                element = (IElement) le;
 
-                var lineSymbol = new SimpleLineSymbolClass();
-                lineSymbol.Color = color;
-                lineSymbol.Width = width;
+                var lineSymbol = new SimpleLineSymbolClass
+                {
+                    Color = color,
+                    Width = width
+                };
 
                 le.Symbol = lineSymbol;
             }
             else if (geom.GeometryType == esriGeometryType.esriGeometryPolygon)
             {
                 // create graphic then add to map
-                IPolygonElement pe = new PolygonElementClass() as IPolygonElement;
-                element = pe as IElement;
+                IPolygonElement pe = new PolygonElementClass();
+                element = (IElement) pe;
                 IFillShapeElement fe = pe as IFillShapeElement;
 
                 var fillSymbol = new SimpleFillSymbolClass();
@@ -122,7 +131,7 @@ namespace ArcMapAddinCoordinateConversion.Helpers
                 selectedColor.Green = 0;
                 selectedColor.Blue = 0;
 
-                selectedColor.Transparency = (byte)0;
+                selectedColor.Transparency = 0;
                 fillSymbol.Color = selectedColor;
 
                 fe.Symbol = fillSymbol;
@@ -133,17 +142,17 @@ namespace ArcMapAddinCoordinateConversion.Helpers
 
             element.Geometry = geom;
 
-            var mxdoc = ArcMap.Application.Document as IMxDocument;
+            var mxdoc = (IMxDocument) ArcMap.Application.Document;
             var av = mxdoc.FocusMap as IActiveView;
-            var gc = av as IGraphicsContainer;
+            var gc = (IGraphicsContainer) av;
 
             // store guid
-            var eprop = element as IElementProperties;
+            var eprop = (IElementProperties) element;
             eprop.Name = Guid.NewGuid().ToString();
 
-            gc.AddElement(element, 0);
+            gc?.AddElement(element, 0);
 
-            av.PartialRefresh(esriViewDrawPhase.esriViewGraphics, null, null);
+            av?.PartialRefresh(esriViewDrawPhase.esriViewGraphics, null, null);
 
             return eprop.Name;
         }
@@ -154,96 +163,97 @@ namespace ArcMapAddinCoordinateConversion.Helpers
         ///<param name="color">An IRgbColor interface</param>
         ///<param name="display">An IDisplay interface</param>
         ///<param name="delay">A System.Int32 that is the time im milliseconds to wait.</param>
+        /// <param name="envelope">IEnvelope</param>
         /// 
         ///<remarks></remarks>
-        public static void FlashGeometry(ESRI.ArcGIS.Geometry.IGeometry geometry, ESRI.ArcGIS.Display.IRgbColor color, ESRI.ArcGIS.Display.IDisplay display, System.Int32 delay, IEnvelope envelope)
+        public static void FlashGeometry(IGeometry geometry, IRgbColor color, IDisplay display, Int32 delay, IEnvelope envelope)
         {
             if (geometry == null || color == null || display == null)
             {
                 return;
             }
 
-            display.StartDrawing(display.hDC, (System.Int16)ESRI.ArcGIS.Display.esriScreenCache.esriNoScreenCache); // Explicit Cast
+            display.StartDrawing(display.hDC, (Int16)esriScreenCache.esriNoScreenCache); // Explicit Cast
 
             switch (geometry.GeometryType)
             {
-                case ESRI.ArcGIS.Geometry.esriGeometryType.esriGeometryPolygon:
+                case esriGeometryType.esriGeometryPolygon:
                     {
                         //Set the flash geometry's symbol.
-                        ESRI.ArcGIS.Display.ISimpleFillSymbol simpleFillSymbol = new ESRI.ArcGIS.Display.SimpleFillSymbolClass();
+                        ISimpleFillSymbol simpleFillSymbol = new SimpleFillSymbolClass();
                         simpleFillSymbol.Color = color;
-                        ESRI.ArcGIS.Display.ISymbol symbol = simpleFillSymbol as ESRI.ArcGIS.Display.ISymbol; // Dynamic Cast
-                        symbol.ROP2 = ESRI.ArcGIS.Display.esriRasterOpCode.esriROPNotXOrPen;
+                        var symbol = (ISymbol) simpleFillSymbol; // Dynamic Cast
+                        symbol.ROP2 = esriRasterOpCode.esriROPNotXOrPen;
 
                         //Flash the input polygon geometry.
                         display.SetSymbol(symbol);
                         display.DrawPolygon(geometry);
-                        System.Threading.Thread.Sleep(delay);
+                        Thread.Sleep(delay);
                         display.DrawPolygon(geometry);
                         break;
                     }
 
-                case ESRI.ArcGIS.Geometry.esriGeometryType.esriGeometryPolyline:
+                case esriGeometryType.esriGeometryPolyline:
                     {
                         //Set the flash geometry's symbol.
-                        ESRI.ArcGIS.Display.ISimpleLineSymbol simpleLineSymbol = new ESRI.ArcGIS.Display.SimpleLineSymbolClass();
+                        ISimpleLineSymbol simpleLineSymbol = new SimpleLineSymbolClass();
                         simpleLineSymbol.Width = 4;
                         simpleLineSymbol.Color = color;
-                        ESRI.ArcGIS.Display.ISymbol symbol = simpleLineSymbol as ESRI.ArcGIS.Display.ISymbol; // Dynamic Cast
-                        symbol.ROP2 = ESRI.ArcGIS.Display.esriRasterOpCode.esriROPNotXOrPen;
+                        var symbol = (ISymbol) simpleLineSymbol; // Dynamic Cast
+                        symbol.ROP2 = esriRasterOpCode.esriROPNotXOrPen;
 
                         //Flash the input polyline geometry.
                         display.SetSymbol(symbol);
                         display.DrawPolyline(geometry);
-                        System.Threading.Thread.Sleep(delay);
+                        Thread.Sleep(delay);
                         display.DrawPolyline(geometry);
                         break;
                     }
 
-                case ESRI.ArcGIS.Geometry.esriGeometryType.esriGeometryPoint:
+                case esriGeometryType.esriGeometryPoint:
                     {
                         //Set the flash geometry's symbol.
-                        ESRI.ArcGIS.Display.ISimpleMarkerSymbol simpleMarkerSymbol = new ESRI.ArcGIS.Display.SimpleMarkerSymbolClass();
-                        simpleMarkerSymbol.Style = ESRI.ArcGIS.Display.esriSimpleMarkerStyle.esriSMSCircle;
+                        ISimpleMarkerSymbol simpleMarkerSymbol = new SimpleMarkerSymbolClass();
+                        simpleMarkerSymbol.Style = esriSimpleMarkerStyle.esriSMSCircle;
                         simpleMarkerSymbol.Size = 12;
                         simpleMarkerSymbol.Color = color;
-                        ESRI.ArcGIS.Display.ISymbol markerSymbol = simpleMarkerSymbol as ESRI.ArcGIS.Display.ISymbol; // Dynamic Cast
-                        markerSymbol.ROP2 = ESRI.ArcGIS.Display.esriRasterOpCode.esriROPNotXOrPen;
+                        ISymbol markerSymbol = (ISymbol) simpleMarkerSymbol; // Dynamic Cast
+                        markerSymbol.ROP2 = esriRasterOpCode.esriROPNotXOrPen;
 
-                        ESRI.ArcGIS.Display.ISimpleLineSymbol simpleLineSymbol = new ESRI.ArcGIS.Display.SimpleLineSymbolClass();
+                        ISimpleLineSymbol simpleLineSymbol = new SimpleLineSymbolClass();
                         simpleLineSymbol.Width = 1;
                         simpleLineSymbol.Color = color;
-                        ESRI.ArcGIS.Display.ISymbol lineSymbol = simpleLineSymbol as ESRI.ArcGIS.Display.ISymbol; // Dynamic Cast
-                        lineSymbol.ROP2 = ESRI.ArcGIS.Display.esriRasterOpCode.esriROPNotXOrPen;
+                        ISymbol lineSymbol = (ISymbol) simpleLineSymbol; // Dynamic Cast
+                        lineSymbol.ROP2 = esriRasterOpCode.esriROPNotXOrPen;
 
                         //Flash the input polygon geometry.
                         display.SetSymbol(markerSymbol);
                         display.SetSymbol(lineSymbol);
 
-                        ArcMapHelpers.DrawCrossHair(geometry, display, envelope, markerSymbol, lineSymbol);
+                        DrawCrossHair(geometry, display, envelope, markerSymbol, lineSymbol);
 
                         //Flash the input point geometry.
                         display.SetSymbol(markerSymbol);
                         display.DrawPoint(geometry);
-                        System.Threading.Thread.Sleep(delay);
+                        Thread.Sleep(delay);
                         display.DrawPoint(geometry);
                         break;
                     }
 
-                case ESRI.ArcGIS.Geometry.esriGeometryType.esriGeometryMultipoint:
+                case esriGeometryType.esriGeometryMultipoint:
                     {
                         //Set the flash geometry's symbol.
-                        ESRI.ArcGIS.Display.ISimpleMarkerSymbol simpleMarkerSymbol = new ESRI.ArcGIS.Display.SimpleMarkerSymbolClass();
-                        simpleMarkerSymbol.Style = ESRI.ArcGIS.Display.esriSimpleMarkerStyle.esriSMSCircle;
+                        ISimpleMarkerSymbol simpleMarkerSymbol = new SimpleMarkerSymbolClass();
+                        simpleMarkerSymbol.Style = esriSimpleMarkerStyle.esriSMSCircle;
                         simpleMarkerSymbol.Size = 12;
                         simpleMarkerSymbol.Color = color;
-                        ESRI.ArcGIS.Display.ISymbol symbol = simpleMarkerSymbol as ESRI.ArcGIS.Display.ISymbol; // Dynamic Cast
-                        symbol.ROP2 = ESRI.ArcGIS.Display.esriRasterOpCode.esriROPNotXOrPen;
+                        ISymbol symbol = (ISymbol) simpleMarkerSymbol; // Dynamic Cast
+                        symbol.ROP2 = esriRasterOpCode.esriROPNotXOrPen;
 
                         //Flash the input multipoint geometry.
                         display.SetSymbol(symbol);
                         display.DrawMultipoint(geometry);
-                        System.Threading.Thread.Sleep(delay);
+                        Thread.Sleep(delay);
                         display.DrawMultipoint(geometry);
                         break;
                     }
@@ -252,11 +262,12 @@ namespace ArcMapAddinCoordinateConversion.Helpers
             display.FinishDrawing();
         }
 
-        private static void DrawCrossHair(ESRI.ArcGIS.Geometry.IGeometry geometry, ESRI.ArcGIS.Display.IDisplay display, IEnvelope extent, ISymbol markerSymbol, ISymbol lineSymbol)
+        private static void DrawCrossHair(IGeometry geometry, IDisplay display, IEnvelope extent, ISymbol markerSymbol, ISymbol lineSymbol)
         {
             try
             {
                 var point = geometry as IPoint;
+                if (point == null) return;
                 var numSegments = 10;
 
                 var latitudeMid = point.Y;//envelope.YMin + ((envelope.YMax - envelope.YMin) / 2);
@@ -269,7 +280,7 @@ namespace ArcMapAddinCoordinateConversion.Helpers
                 var fromRightLong = extent.XMax;
                 var fromTopLat = extent.YMax;
                 var fromBottomLat = extent.YMin;
-                var av = (ArcMap.Application.Document as IMxDocument).ActiveView;
+                var av = ((IMxDocument) ArcMap.Application.Document).ActiveView;
 
                 var leftPolyline = new PolylineClass();
                 var rightPolyline = new PolylineClass();
@@ -281,15 +292,15 @@ namespace ArcMapAddinCoordinateConversion.Helpers
                 topPolyline.SpatialReference = geometry.SpatialReference;
                 bottomPolyline.SpatialReference = geometry.SpatialReference;
 
-                var leftPC = leftPolyline as IPointCollection;
-                var rightPC = rightPolyline as IPointCollection;
-                var topPC = topPolyline as IPointCollection;
-                var bottomPC = bottomPolyline as IPointCollection;
+                var leftPC = (IPointCollection) leftPolyline;
+                var rightPC = (IPointCollection) rightPolyline;
+                var topPC = (IPointCollection) topPolyline;
+                var bottomPC = (IPointCollection) bottomPolyline;
 
-                leftPC.AddPoint(new PointClass() { X = fromLeftLong, Y = latitudeMid });
-                rightPC.AddPoint(new PointClass() { X = fromRightLong, Y = latitudeMid });
-                topPC.AddPoint(new PointClass() { X = longitudeMid, Y = fromTopLat });
-                bottomPC.AddPoint(new PointClass() { X = longitudeMid, Y = fromBottomLat });
+                leftPC.AddPoint(new PointClass { X = fromLeftLong, Y = latitudeMid });
+                rightPC.AddPoint(new PointClass { X = fromRightLong, Y = latitudeMid });
+                topPC.AddPoint(new PointClass { X = longitudeMid, Y = fromTopLat });
+                bottomPC.AddPoint(new PointClass { X = longitudeMid, Y = fromBottomLat });
 
                 for (int x = 1; x <= numSegments; x++)
                 {
@@ -297,10 +308,10 @@ namespace ArcMapAddinCoordinateConversion.Helpers
                     display.SetSymbol(markerSymbol);
                     display.SetSymbol(lineSymbol);
 
-                    leftPC.AddPoint(new PointClass() { X = fromLeftLong + leftLongSegment * x, Y = latitudeMid });
-                    rightPC.AddPoint(new PointClass() { X = fromRightLong - rightLongSegment * x, Y = latitudeMid });
-                    topPC.AddPoint(new PointClass() { X = longitudeMid, Y = fromTopLat - topLatSegment * x });
-                    bottomPC.AddPoint(new PointClass() { X = longitudeMid, Y = fromBottomLat + bottomLatSegment * x });
+                    leftPC.AddPoint(new PointClass { X = fromLeftLong + leftLongSegment * x, Y = latitudeMid });
+                    rightPC.AddPoint(new PointClass { X = fromRightLong - rightLongSegment * x, Y = latitudeMid });
+                    topPC.AddPoint(new PointClass { X = longitudeMid, Y = fromTopLat - topLatSegment * x });
+                    bottomPC.AddPoint(new PointClass { X = longitudeMid, Y = fromBottomLat + bottomLatSegment * x });
 
                     // draw
                     display.DrawPolyline(leftPolyline);
@@ -308,17 +319,17 @@ namespace ArcMapAddinCoordinateConversion.Helpers
                     display.DrawPolyline(topPolyline);
                     display.DrawPolyline(bottomPolyline);
 
-                    System.Threading.Thread.Sleep(15);
+                    Thread.Sleep(15);
                     display.FinishDrawing();
                     av.PartialRefresh(esriViewDrawPhase.esriViewForeground, null, null);
                     //av.Refresh();
-                    System.Windows.Forms.Application.DoEvents();
-                    display.StartDrawing(display.hDC, (System.Int16)ESRI.ArcGIS.Display.esriScreenCache.esriNoScreenCache); // Explicit Cast
+                    Application.DoEvents();
+                    display.StartDrawing(display.hDC, (Int16)esriScreenCache.esriNoScreenCache); // Explicit Cast
                 }
             }
-            catch(Exception ex)
+            catch 
             {
-
+                // ignored
             }
         }
 

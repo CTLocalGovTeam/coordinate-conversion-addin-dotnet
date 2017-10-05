@@ -16,11 +16,7 @@
   *   http://stackoverflow.com/questions/743906/how-to-hide-close-button-in-wpf-window
   ******************************************************************************/
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
 
@@ -37,12 +33,12 @@ namespace CoordinateConversionLibrary.Behaviors
                 "HideCloseButton",
                 typeof(bool),
                 OwnerType,
-                new FrameworkPropertyMetadata(false, new PropertyChangedCallback(HideCloseButtonChangedCallback)));
+                new FrameworkPropertyMetadata(false, HideCloseButtonChangedCallback));
 
         [AttachedPropertyBrowsableForType(typeof(Window))]
         public static bool GetHideCloseButton(Window obj)
         {
-            return (bool)obj.GetValue(HideCloseButtonProperty);
+            return obj != null && (bool)obj.GetValue(HideCloseButtonProperty);
         }
 
         [AttachedPropertyBrowsableForType(typeof(Window))]
@@ -137,7 +133,7 @@ namespace CoordinateConversionLibrary.Behaviors
         [AttachedPropertyBrowsableForType(typeof(Window))]
         public static bool GetIsHiddenCloseButton(Window obj)
         {
-            return (bool)obj.GetValue(IsHiddenCloseButtonProperty);
+            return obj != null && (bool)obj.GetValue(IsHiddenCloseButtonProperty);
         }
 
         private static void SetIsHiddenCloseButton(Window obj, bool value)

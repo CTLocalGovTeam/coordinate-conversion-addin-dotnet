@@ -25,14 +25,13 @@ using ArcGIS.Desktop.Catalog;
 using ArcGIS.Core.Geometry;
 using ArcGIS.Core.CIM;
 using ArcGIS.Core.Data;
-using ArcGIS.Desktop.Core;
 using ArcGIS.Desktop.Framework.Threading.Tasks;
 using ArcGIS.Desktop.Core.Geoprocessing;
-using ArcGIS.Desktop.Editing;
 using ArcGIS.Desktop.Mapping;
 
 using CoordinateConversionLibrary;
 using System.Windows;
+using ArcGIS.Desktop.Framework;
 
 namespace ProAppCoordConversionModule.Models
 {
@@ -48,9 +47,11 @@ namespace ProAppCoordConversionModule.Models
         public string PromptUserWithSaveDialog(bool featureChecked, bool shapeChecked, bool kmlChecked, bool csvChecked)
         {
             //Prep the dialog
-            SaveItemDialog saveItemDlg = new SaveItemDialog();
-            saveItemDlg.Title = CoordinateConversionLibrary.Properties.Resources.TitleSelectOutput;
-            saveItemDlg.OverwritePrompt = true;
+            SaveItemDialog saveItemDlg = new SaveItemDialog
+            {
+                Title = CoordinateConversionLibrary.Properties.Resources.TitleSelectOutput,
+                OverwritePrompt = true
+            };
             if (!string.IsNullOrEmpty(previousLocation))
                 saveItemDlg.InitialLocation = previousLocation;
 
@@ -111,7 +112,12 @@ namespace ProAppCoordConversionModule.Models
             }
             catch (Exception ex)
             {
-
+                FrameworkApplication.AddNotification(new Notification()
+                {
+                    Title = "Coordinate Conversion",
+                    Message = "Failed to create feature class",
+                    ImageUrl = ""
+                });
             }
         }
         public async Task CreateFCOutput(string outputPath, SaveAsType saveAsType, List<MapPoint> mapPointList, SpatialReference spatialRef, MapView mapview, GeomType geomType, bool isKML = false)
@@ -159,42 +165,45 @@ namespace ProAppCoordConversionModule.Models
                             {
                                 rowBuffer = table.CreateRowBuffer();
 
-                                if (graphic.Geometry is Polyline)
+                                if (graphic?.Geometry is Polyline)
                                 {
-                                    Polyline poly = new PolylineBuilder(graphic.Geometry as Polyline).ToGeometry();
+                                    Polyline poly = new PolylineBuilder((Polyline) graphic.Geometry).ToGeometry();
                                     rowBuffer[shapeIndex] = poly;
                                 }
-                                else if (graphic.Geometry is Polygon)
-                                    rowBuffer[shapeIndex] = new PolygonBuilder(graphic.Geometry as Polygon).ToGeometry();
+                                else if (graphic?.Geometry is Polygon)
+                                    rowBuffer[shapeIndex] = new PolygonBuilder((Polygon) graphic.Geometry).ToGeometry();
 
-                                Row row = table.CreateRow(rowBuffer);
+                                table.CreateRow(rowBuffer);
                             }
                         }
 
                         //Get simple renderer from feature layer 
                         CIMSimpleRenderer currentRenderer = featureLayer.GetRenderer() as CIMSimpleRenderer;
-                        CIMSymbolReference sybmol = currentRenderer.Symbol;
+                        //CIMSymbolReference sybmol = currentRenderer?.Symbol;
 
                         var outline = SymbolFactory.Instance.ConstructStroke(ColorFactory.Instance.RedRGB, 1.0, SimpleLineStyle.Solid);
                         var s = SymbolFactory.Instance.ConstructPolygonSymbol(ColorFactory.Instance.RedRGB, SimpleFillStyle.Null, outline);
                         CIMSymbolReference symbolRef = new CIMSymbolReference() { Symbol = s };
-                        currentRenderer.Symbol = symbolRef;
+                        if (currentRenderer != null)
+                        {
+                            currentRenderer.Symbol = symbolRef;
 
-                        featureLayer.SetRenderer(currentRenderer);
-
+                            featureLayer.SetRenderer(currentRenderer);
+                        }
                     }
                 });
 
             }
             catch (GeodatabaseException exObj)
             {
+#if DEBUG
                 Console.WriteLine(exObj);
+#endif
                 throw;
             }
             finally
             {
-                if (rowBuffer != null)
-                    rowBuffer.Dispose();
+                rowBuffer?.Dispose();
             }
         }
         private static async Task CreateFeatures(List<MapPoint> mapPointList)
@@ -224,22 +233,24 @@ namespace ProAppCoordConversionModule.Models
                                     MapPointBuilder.CreateMapPoint(point.X, point.Y, point.SpatialReference);
                                 rowBuffer[shapeIndex] = geom;
 
-                                Row row = table.CreateRow(rowBuffer);
+                                table.CreateRow(rowBuffer);
                             }
                         }
 
                         //Get simple renderer from feature layer 
                         CIMSimpleRenderer currentRenderer = featureLayer.GetRenderer() as CIMSimpleRenderer;
-                        CIMSymbolReference sybmol = currentRenderer.Symbol;
+                        //CIMSymbolReference sybmol = currentRenderer.Symbol;
 
                         //var outline = SymbolFactory.ConstructStroke(ColorFactory.RedRGB, 1.0, SimpleLineStyle.Solid);
                         //var s = SymbolFactory.ConstructPolygonSymbol(ColorFactory.RedRGB, SimpleFillStyle.Null, outline);
                         var s = SymbolFactory.Instance.ConstructPointSymbol(ColorFactory.Instance.RedRGB, 3.0);
                         CIMSymbolReference symbolRef = new CIMSymbolReference() { Symbol = s };
-                        currentRenderer.Symbol = symbolRef;
+                        if (currentRenderer != null)
+                        {
+                            currentRenderer.Symbol = symbolRef;
 
-                        featureLayer.SetRenderer(currentRenderer);
-
+                            featureLayer.SetRenderer(currentRenderer);
+                        }
                     }
                 });
 
@@ -251,8 +262,7 @@ namespace ProAppCoordConversionModule.Models
             }
             finally
             {
-                if (rowBuffer != null)
-                    rowBuffer.Dispose();
+                rowBuffer?.Dispose();
             }
         }
 
@@ -278,20 +288,22 @@ namespace ProAppCoordConversionModule.Models
             {
                 string strGeomType = geomType == GeomType.PolyLine ? "POLYLINE" : "POLYGON";
 
-                List<object> arguments = new List<object>();
+                List<object> arguments = new List<object>
+                {
+                    connection,
+                    dataset,
+                    strGeomType,
+                    "",
+                    "DISABLED",
+                    "DISABLED",
+                    spatialRef
+                };
                 // store the results in the geodatabase
-                arguments.Add(connection);
                 // name of the feature class
-                arguments.Add(dataset);
                 // type of geometry
-                arguments.Add(strGeomType);
                 // no template
-                arguments.Add("");
                 // no z values
-                arguments.Add("DISABLED");
                 // no m values
-                arguments.Add("DISABLED");
-                arguments.Add(spatialRef);
 
                 var valueArray = Geoprocessing.MakeValueArray(arguments.ToArray());
                 IGPResult result = await Geoprocessing.ExecuteToolAsync("CreateFeatureclass_management", valueArray);
@@ -321,20 +333,14 @@ namespace ProAppCoordConversionModule.Models
         {
             try
             {
-                List<object> arguments = new List<object>();
+                List<object> arguments =
+                    new List<object> {connection, dataset, "POINT", "", "DISABLED", "DISABLED", spatialRef};
                 // store the results in the geodatabase
-                arguments.Add(connection);
                 // name of the feature class
-                arguments.Add(dataset);
                 // type of geometry
-                arguments.Add("POINT");
                 // no template
-                arguments.Add("");
                 // m values
-                arguments.Add("DISABLED");
                 // no z values
-                arguments.Add("DISABLED");
-                arguments.Add(spatialRef);
 
                 var env = Geoprocessing.MakeEnvironmentArray(overwriteoutput: true);
 

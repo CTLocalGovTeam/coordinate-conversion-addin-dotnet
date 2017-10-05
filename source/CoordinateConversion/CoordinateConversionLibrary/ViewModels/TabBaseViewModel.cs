@@ -16,11 +16,9 @@ using System;
 using CoordinateConversionLibrary.Helpers;
 using CoordinateConversionLibrary.Models;
 using CoordinateConversionLibrary.Views;
-using Microsoft.Win32;
 using System.IO;
 using System.Text;
 using System.Collections.Generic;
-using System.Windows.Forms;
 
 namespace CoordinateConversionLibrary.ViewModels
 {
@@ -37,12 +35,12 @@ namespace CoordinateConversionLibrary.ViewModels
             EditPropertiesDialogCommand = new RelayCommand(OnEditPropertiesDialogCommand);
             ImportCSVFileCommand = new RelayCommand(OnImportCSVFileCommand);
 
-            Mediator.Register(CoordinateConversionLibrary.Constants.NEW_MAP_POINT, OnNewMapPointInternal);
-            Mediator.Register(CoordinateConversionLibrary.Constants.MOUSE_MOVE_POINT, OnMouseMoveInternal);
-            Mediator.Register(CoordinateConversionLibrary.Constants.TAB_ITEM_SELECTED, OnTabItemSelected);
-            Mediator.Register(CoordinateConversionLibrary.Constants.SetToolMode, (mode) =>
+            Mediator.Register(Constants.NEW_MAP_POINT, OnNewMapPointInternal);
+            Mediator.Register(Constants.MOUSE_MOVE_POINT, OnMouseMoveInternal);
+            Mediator.Register(Constants.TAB_ITEM_SELECTED, OnTabItemSelected);
+            Mediator.Register(Constants.SetToolMode, (mode) =>
             {
-                MapPointToolMode eMode = MapPointToolMode.Unknown;
+                MapPointToolMode eMode;
                 Enum.TryParse<MapPointToolMode>(mode.ToString(), out eMode);
                 ToolMode = eMode;
             });
@@ -123,7 +121,6 @@ namespace CoordinateConversionLibrary.ViewModels
 
         public virtual void ProcessInput(string input)
         {
-            return;
         }
 
         public void OnEditPropertiesDialogCommand(object obj)
@@ -135,10 +132,10 @@ namespace CoordinateConversionLibrary.ViewModels
             }
             catch (Exception e)
             {
-                if (e.Message.ToLower() == CoordinateConversionLibrary.Properties.Resources.CoordsOutOfBoundsMsg.ToLower())
+                if (e.Message.ToLower() == Properties.Resources.CoordsOutOfBoundsMsg.ToLower())
                 {
-                    System.Windows.Forms.MessageBox.Show(e.Message + System.Environment.NewLine + CoordinateConversionLibrary.Properties.Resources.CoordsOutOfBoundsAddlMsg, 
-                        CoordinateConversionLibrary.Properties.Resources.CoordsoutOfBoundsCaption);
+                    System.Windows.Forms.MessageBox.Show(e.Message + System.Environment.NewLine + Properties.Resources.CoordsOutOfBoundsAddlMsg, 
+                        Properties.Resources.CoordsoutOfBoundsCaption);
                 }
                 else
                 {
@@ -151,31 +148,38 @@ namespace CoordinateConversionLibrary.ViewModels
 
         private void OnImportCSVFileCommand(object obj)
         {
-            CoordinateConversionLibraryConfig.AddInConfig.DisplayAmbiguousCoordsDlg = false; 
+            CoordinateConversionLibraryConfig.AddInConfig.DisplayAmbiguousCoordsDlg = false;
 
-            var fileDialog = new Microsoft.Win32.OpenFileDialog();
-            fileDialog.CheckFileExists = true;
-            fileDialog.CheckPathExists = true;
-            fileDialog.Filter = "csv files|*.csv";
+            var fileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                CheckFileExists = true,
+                CheckPathExists = true,
+                Filter = "csv files|*.csv"
+            };
 
             var result = fileDialog.ShowDialog();
-            if(result.HasValue && result.Value == true)
+            if(result.HasValue && result.Value)
             {
                 // attemp to import
                 var fieldVM = new SelectCoordinateFieldsViewModel();
 
-                var headers = ImportCSV.GetHeaders(File.OpenRead(fileDialog.FileName));
-                foreach (var header in headers)
+                using (var fs = File.OpenRead(fileDialog.FileName))
                 {
-                    fieldVM.AvailableFields.Add(header);
-                    Console.WriteLine("header : {0}", header);
+                    var headers = ImportCSV.GetHeaders(fs);
+                    foreach (var header in headers)
+                    {
+                        fieldVM.AvailableFields.Add(header);
+                    }
                 }
 
-                var dlg = new SelectCoordinateFieldsView();
-                dlg.DataContext = fieldVM;
+                var dlg = new SelectCoordinateFieldsView {DataContext = fieldVM};
                 if (dlg.ShowDialog() == true)
                 {
-                    var lists = ImportCSV.Import<ImportCoordinatesList>(File.OpenRead(fileDialog.FileName), fieldVM.SelectedFields.ToArray());
+                    IEnumerable<ImportCoordinatesList> lists;
+                    using (var fs = File.OpenRead(fileDialog.FileName))
+                    {
+                        lists = ImportCSV.Import<ImportCoordinatesList>(fs, fieldVM.SelectedFields.ToArray());
+                    }
 
                     var coordinates = new List<string>();
 
@@ -184,12 +188,12 @@ namespace CoordinateConversionLibrary.ViewModels
                         var sb = new StringBuilder();
                         sb.Append(item.lat.Trim());
                         if (fieldVM.UseTwoFields)
-                            sb.Append(string.Format(" {0}", item.lon.Trim()));
+                            sb.Append($" {item.lon.Trim()}");
 
                         coordinates.Add(sb.ToString());
                     }
 
-                    Mediator.NotifyColleagues(CoordinateConversionLibrary.Constants.IMPORT_COORDINATES, coordinates);
+                    Mediator.NotifyColleagues(Constants.IMPORT_COORDINATES, coordinates);
                 }
             }
 

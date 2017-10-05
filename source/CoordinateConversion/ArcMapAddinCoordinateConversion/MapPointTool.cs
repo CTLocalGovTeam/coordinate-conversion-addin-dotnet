@@ -46,7 +46,7 @@ namespace ArcMapAddinCoordinateConversion
         {
             //Get the snap environment and initialize the feedback
             UID snapUID = new UID();
-            this.Cursor = Cursors.Cross;
+            Cursor = Cursors.Cross;
             snapUID.Value = "{E07B4C52-C894-4558-B8D4-D4050018D1DA}";
             m_SnappingEnv = ArcMap.Application.FindExtensionByCLSID(snapUID) as ISnappingEnvironment;
             m_Snapper = m_SnappingEnv.PointSnapper;

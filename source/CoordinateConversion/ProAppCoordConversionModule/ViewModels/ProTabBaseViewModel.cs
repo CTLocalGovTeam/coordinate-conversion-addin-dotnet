@@ -537,7 +537,7 @@ namespace ProAppCoordConversionModule.ViewModels
                         return tmp;
                     });//.Result;
 
-                    return new CCCoordinate() { Type = CoordinateType.USNG, Point = point }; ;
+                    return new CCCoordinate() { Type = CoordinateType.USNG, Point = point }; 
                 }
                 catch { }
             }

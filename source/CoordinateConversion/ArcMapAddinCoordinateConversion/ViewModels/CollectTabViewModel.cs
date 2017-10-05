@@ -30,6 +30,7 @@ using System.Windows.Forms;
 using System.Text;
 using CoordinateConversionLibrary.Models;
 using Jitbit.Utils;
+using Path = System.IO.Path;
 
 namespace ArcMapAddinCoordinateConversion.ViewModels
 {
@@ -66,13 +67,8 @@ namespace ArcMapAddinCoordinateConversion.ViewModels
             Mediator.NotifyColleagues(CoordinateConversionLibrary.Constants.CollectListHasItems, CoordinateAddInPoints.Any());
         }
 
-        public bool HasListBoxRightClickSelectedItem
-        {
-            get
-            {
-                return ListBoxItemAddInPoint != null;
-            }
-        }
+        public bool HasListBoxRightClickSelectedItem => ListBoxItemAddInPoint != null;
+
         public bool HasAnySelectedItems
         {
             get
@@ -230,7 +226,7 @@ namespace ArcMapAddinCoordinateConversion.ViewModels
                     {
                         string kmlName = System.IO.Path.GetFileName(path);
                         string folderName = System.IO.Path.GetDirectoryName(path);
-                        string tempShapeFile = folderName + "\\tmpShapefile.shp";
+                        string tempShapeFile = $"{folderName}{Path.DirectorySeparatorChar}tmpShapefile.shp";
                         IFeatureClass tempFc = fcUtils.CreateFCOutput(tempShapeFile, SaveAsType.Shapefile, GraphicsList, ArcMap.Document.FocusMap.SpatialReference);
 
                         if (tempFc != null)
@@ -536,7 +532,7 @@ namespace ArcMapAddinCoordinateConversion.ViewModels
 
             foreach (var coordinate in coordinates)
             {
-                this.ProcessInput(coordinate);
+                ProcessInput(coordinate);
                 InputCoordinate = coordinate;
                 if (!HasInputError)
                     OnNewMapPoint(amCoordGetter.Point);

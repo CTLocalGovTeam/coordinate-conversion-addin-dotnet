@@ -87,7 +87,10 @@ namespace CoordinateConversionLibrary.Helpers
 
                 string[] row = line.Split(charSep);
                 List<ImportDescriptor> headers = ParseHeader<T>(row, fieldNames);
-                while (ImportLine(reader, headers, list, row.Count(), charSep)) ;
+                while (ImportLine(reader, headers, list, row.Count(), charSep))
+                {
+                    // do nothing
+                }
             }
 
             return list;
