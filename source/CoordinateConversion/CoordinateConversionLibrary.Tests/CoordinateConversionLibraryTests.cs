@@ -40,6 +40,7 @@ namespace CoordinateConversionLibrary.Tests
             Assert.IsFalse(CoordinateDD.TryParse("", out coord));
             Assert.IsTrue(CoordinateDD.TryParse("40.273048 -78.847427", out coord));
             Assert.AreEqual(40.273048, coord.Lat);
+            Assert.AreEqual(99.999999, coord.Lat);
             Assert.AreEqual(-78.847427, coord.Lon);
             Assert.IsTrue(CoordinateDD.TryParse("40.273048N 78.847427W", out coord));
             Assert.AreEqual(40.273048, coord.Lat);
