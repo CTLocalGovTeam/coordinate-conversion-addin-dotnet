@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:libprop="clr-namespace:CoordinateConversionLibrary.Properties"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:autoForeGround="clr-namespace:CoordinateConversionLibrary.Helpers"
              d:DesignHeight="300"
              d:DesignWidth="300"
              mc:Ignorable="d">
@@ -12,6 +13,20 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="/CoordinateConversionLibrary;component/MAResourceDictionary.xaml" />
             </ResourceDictionary.MergedDictionaries>
+            <Style TargetType="TextBlock">
+                <Setter Property="autoForeGround:AutoForeGroundExtension.AutoForeGround"
+                        Value="True" />
+                <Setter Property="Text">
+                    <Setter.Value>
+                        <MultiBinding StringFormat="{} {0} / {1}">
+                            <Binding RelativeSource="{RelativeSource Mode=Self}"
+                                     Path="(TextBlock.Foreground).(SolidColorBrush.Color)" />
+                            <Binding RelativeSource="{RelativeSource Mode=Self}"
+                                     Path="(TextBlock.Background).(SolidColorBrush.Color)" />
+                        </MultiBinding>
+                    </Setter.Value>
+                </Setter>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
     <Grid>
@@ -35,6 +50,7 @@
                                  UpdateSourceTrigger=PropertyChanged}">
             <ComboBox.Style>
                 <Style>
+                    <Setter Property="TextBox.Background" Value="Transparent" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding HasInputError}" Value="True">
                             <Setter Property="TextBox.Background" Value="LightPink" />

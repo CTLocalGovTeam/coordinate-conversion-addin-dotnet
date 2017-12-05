@@ -166,16 +166,17 @@
             <DataGrid.RowDetailsTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Vertical">
-                        <ListBox HorizontalContentAlignment="Stretch" ItemsSource="{Binding Props}">
+                        <ListBox HorizontalContentAlignment="Stretch" ItemsSource="{Binding Props}" Background="Transparent">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid>
+                                    <Grid Background="Orange">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" MinWidth="55" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock
+                                            Background="Transparent"
                                             Margin="3,3,0,0"
                                             VerticalAlignment="Center"
                                             Text="{Binding Key, Mode=OneWay}" />
